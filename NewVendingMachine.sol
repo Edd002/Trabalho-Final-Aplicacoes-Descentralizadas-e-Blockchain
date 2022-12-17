@@ -2,13 +2,19 @@
 
 pragma solidity 0.8.7;
 
-contract VendingMachine {
+contract NewVendingMachine {
+
+    struct Buyer {
+        uint balance;
+        bool registered;
+    }
+    mapping (address => Buyer) public buyers;
+    address[] private registeredBuyers;
 
     // Declare state variables of the contract
     address payable public owner;
     uint price = 1;
     mapping (address => uint) public cupcakeBalances;
-    mapping (address => uint) public buyersQuantitiesPerPurchase;
 
     // When 'VendingMachine' contract is deployed:
     // 1. set the deploying address as the owner of the contract
@@ -48,17 +54,16 @@ contract VendingMachine {
         owner.transfer(getVendingMachineEtherBalance());
     }
 
-    address[] private buyers;
     function getBuyers() public view returns (address[] memory, uint[] memory) {
-        address[] memory _buyers = new address[] (buyers.length);
-        uint[] memory _quantities = new uint[] (buyers.length);
+        address[] memory _registeredBuyers = new address[] (registeredBuyers.length);
+        uint[] memory _balance = new uint[] (registeredBuyers.length);
 
-        for (uint i = 0; i < buyers.length; i++) {
-            _buyers[i] = buyers[i];
-            _quantities[i] = buyersQuantitiesPerPurchase[buyers[i]];
+        for (uint i = 0; i < registeredBuyers.length; i++) {
+            _registeredBuyers[i] = registeredBuyers[i];
+            _balance[i] = buyers[registeredBuyers[i]].balance;
         }
 
-        return (_buyers, _quantities);
+        return (_registeredBuyers, _balance);
     }
 
     // Allow anyone to purchase cupcakes
@@ -66,9 +71,14 @@ contract VendingMachine {
         require(msg.value >= amount * 1 gwei * price, concatenate("The minimum price for purchasing each cupcake in Gwei is", uintToStr(price)));
         require(cupcakeBalances[address(this)] >= amount, "Not enough cupcakes in stock to complete this purchase");
         cupcakeBalances[address(this)] -= amount;
+        cupcakeBalances[msg.sender] += amount;
 
-        buyersQuantitiesPerPurchase[msg.sender] += amount;
-        buyers.push(msg.sender);
+        buyers[msg.sender].balance = cupcakeBalances[msg.sender];
+
+        if (!buyers[msg.sender].registered)
+            registeredBuyers.push(msg.sender);
+
+        buyers[msg.sender].registered = true;
     }
 
     function uintToStr(uint256 _i) internal pure returns (string memory str) {
